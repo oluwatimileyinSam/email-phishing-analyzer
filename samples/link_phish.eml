@@ -1,0 +1,27 @@
+From: "Northwind Bank Security" <security@northwindbank.example>
+To: customer@mail.example
+Subject: Your account will be locked in 24 hours
+Date: Tue, 10 Nov 2026 07:42:00 +0000
+Message-ID: <phish002@northwindbank.example>
+Authentication-Results: mx.mail.example; spf=softfail smtp.mailfrom=northwindbank.example; dkim=fail header.d=northwindbank.example; dmarc=fail header.from=northwindbank.example
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="BOUNDARY123"
+
+--BOUNDARY123
+Content-Type: text/html; charset="utf-8"
+
+<html><body>
+<p>Dear customer,</p>
+<p>We found unusual activity. Verify your password now or your account will be locked.</p>
+<p><a href="http://198.51.100.23/login">https://www.northwindbank.example/login</a></p>
+<p>Open the attached statement for details.</p>
+</body></html>
+
+--BOUNDARY123
+Content-Type: application/octet-stream; name="Statement_Nov.pdf.exe"
+Content-Disposition: attachment; filename="Statement_Nov.pdf.exe"
+Content-Transfer-Encoding: base64
+
+ZmFrZSBmaWxlIGZvciB0ZXN0aW5n
+
+--BOUNDARY123--

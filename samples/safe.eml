@@ -1,0 +1,16 @@
+From: Ada Okoye <ada@northwindco.example>
+To: team@northwindco.example
+Subject: Team meeting moved to Thursday
+Date: Mon, 09 Nov 2026 09:15:00 +0100
+Message-ID: <safe001@northwindco.example>
+Authentication-Results: mx.northwindco.example; spf=pass smtp.mailfrom=northwindco.example; dkim=pass header.d=northwindco.example; dmarc=pass header.from=northwindco.example
+Content-Type: text/plain; charset="utf-8"
+
+Hi team,
+
+The weekly meeting is now on Thursday at 10:00. Same room.
+
+Please bring your project updates.
+
+Thanks,
+Ada

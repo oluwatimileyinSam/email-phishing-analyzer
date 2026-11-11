@@ -1,0 +1,26 @@
+From: Sam Bello <sam@northwindco.example>
+To: team@northwindco.example
+Subject: Invoice for your review
+Date: Tue, 10 Nov 2026 10:20:00 +0100
+Message-ID: <attach003@northwindco.example>
+Authentication-Results: mx.northwindco.example; spf=pass smtp.mailfrom=northwindco.example; dkim=pass header.d=northwindco.example; dmarc=pass header.from=northwindco.example
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="BOUNDARY456"
+
+--BOUNDARY456
+Content-Type: text/plain; charset="utf-8"
+
+Hi,
+
+Please review the attached invoice.
+
+Sam
+
+--BOUNDARY456
+Content-Type: application/octet-stream; name="Invoice_Nov.docm"
+Content-Disposition: attachment; filename="Invoice_Nov.docm"
+Content-Transfer-Encoding: base64
+
+ZmFrZSBmaWxlIGZvciB0ZXN0aW5n
+
+--BOUNDARY456--

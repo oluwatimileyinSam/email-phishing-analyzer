@@ -1,0 +1,21 @@
+From: "Northwind Finance" <billing@northwlndco.example>
+Reply-To: payments.help@mailbox.example
+To: finance@northwindco.example
+Subject: URGENT: Update our bank details before payment today
+Date: Tue, 10 Nov 2026 08:05:00 +0000
+Message-ID: <fraud001@northwlndco.example>
+Authentication-Results: mx.northwindco.example; spf=fail smtp.mailfrom=northwlndco.example; dkim=none; dmarc=fail header.from=northwlndco.example
+Content-Type: text/plain; charset="utf-8"
+
+Dear Accounts Team,
+
+We have changed our bank. Please update our bank details today.
+
+New account name: Northwind Supplies Ltd
+New account number: 0000000000
+
+This is urgent. Pay the outstanding invoice immediately to avoid penalties.
+Do not call the old number. Our phone line is down.
+
+Regards,
+Finance Office
