@@ -35,6 +35,9 @@ def load_email(path):
     with open(path, "rb") as f:
         return BytesParser(policy=policy.default).parse(f)
 
+def load_email_bytes(data):
+    return BytesParser(policy=policy.default).parsebytes(data)
+
 
 def get_result(auth_text, name):
     match = re.search(name + r"=(\w+)", auth_text)
@@ -262,17 +265,7 @@ def build_advice(level, findings):
     return advice
 
 
-def main():
-    if len(sys.argv) < 2:
-        print("Usage: python3 analyzer.py samples/safe.eml")
-        return
-
-    msg = load_email(sys.argv[1])
-
-    print("From:", msg["From"])
-    print("Subject:", msg["Subject"])
-    print()
-
+def analyze_email(msg):
     findings = []
     findings = findings + check_authentication(msg)
     findings = findings + check_sender(msg)
@@ -287,22 +280,51 @@ def main():
 
     level = get_level(score)
 
-    print("Risk score:", score, "/ 100 (" + level + ")")
+    if findings:
+        advice = build_advice(level, findings)
+    else:
+        advice = [
+            "No warnings found. This does not mean the email is safe.",
+            "Still verify anything about money or passwords by a call or in person.",
+        ]
+
+    return {
+        "from": str(msg["From"]),
+        "subject": str(msg["Subject"]),
+        "score": score,
+        "level": level,
+        "findings": findings,
+        "advice": advice,
+    }
+
+
+def main():
+    if len(sys.argv) < 2:
+        print("Usage: python3 analyzer.py samples/safe.eml")
+        return
+
+    msg = load_email(sys.argv[1])
+    result = analyze_email(msg)
+
+    print("From:", result["from"])
+    print("Subject:", result["subject"])
+    print()
+    print("Risk score:", result["score"], "/ 100 (" + result["level"] + ")")
     print()
 
-    if findings:
+    if result["findings"]:
         print("Reasons:")
-        for points, reason in findings:
+        for points, reason in result["findings"]:
             print("  +" + str(points), reason)
         print()
         print("What to do:")
         number = 1
-        for line in build_advice(level, findings):
+        for line in result["advice"]:
             print("  " + str(number) + ".", line)
             number = number + 1
     else:
-        print("No warnings found. This does not mean the email is safe.")
-        print("Still verify anything about money or passwords by a call or in person.")
+        for line in result["advice"]:
+            print(line)
 
 
 if __name__ == "__main__":
