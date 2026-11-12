@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Email Phishing Analyzer</title>
+  <style>
+    body { font-family: Arial, Helvetica, sans-serif; background: #f4f6f8; color: #1b1f24; margin: 0; }
+    .wrap { max-width: 720px; margin: 0 auto; padding: 24px 16px 48px; }
+    h1 { font-size: 26px; margin-bottom: 4px; }
+    h2 { font-size: 16px; margin: 18px 0 6px; }
+    .sub { color: #5a6270; margin-top: 0; }
+    .card { background: #ffffff; border: 1px solid #d9dee5; border-radius: 8px; padding: 18px; margin-top: 16px; }
+    .error { background: #fdecea; border-color: #e5a29b; }
+    .badge { display: inline-block; padding: 4px 12px; border-radius: 12px; color: #ffffff; font-weight: bold; }
+    .HIGH { background: #b3261e; }
+    .MEDIUM { background: #c76a00; }
+    .LOW { background: #8a6d00; }
+    .NOWARN { background: #5a6270; }
+    .score { font-size: 28px; font-weight: bold; margin-right: 10px; }
+    .plus { font-weight: bold; margin-right: 6px; }
+    button { background: #1f3a5f; color: #ffffff; border: 0; border-radius: 6px; padding: 8px 16px; font-size: 14px; cursor: pointer; }
+    .note { color: #5a6270; font-size: 13px; margin-top: 20px; }
+    li { margin-bottom: 4px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Email Phishing Analyzer</h1>
+    <p class="sub">Upload a saved email (.eml file). You get a risk score, the reasons, and advice on how to verify it.</p>
+
+    <div class="card">
+      <form method="post" enctype="multipart/form-data">
+        <input type="file" name="email_file" accept=".eml">
+        <button type="submit">Scan email</button>
+      </form>
+    </div>
+
+    {% if error %}
+    <div class="card error">{{ error }}</div>
+    {% endif %}
+
+    {% if result %}
+    {% set cls = "NOWARN" if result.level == "NO WARNINGS" else result.level %}
+    <div class="card">
+      <p><strong>From:</strong> {{ result["from"] }}</p>
+      <p><strong>Subject:</strong> {{ result["subject"] }}</p>
+      <p>
+        <span class="score">{{ result.score }} / 100</span>
+        <span class="badge {{ cls }}">{{ result.level }}</span>
+      </p>
+
+      {% if result.findings %}
+      <h2>Reasons</h2>
+      <ul>
+        {% for points, reason in result.findings %}
+        <li><span class="plus">+{{ points }}</span>{{ reason }}</li>
+        {% endfor %}
+      </ul>
+      <h2>What to do</h2>
+      {% else %}
+      <h2>Result</h2>
+      {% endif %}
+
+      <ol>
+        {% for line in result.advice %}
+        <li>{{ line }}</li>
+        {% endfor %}
+      </ol>
+    </div>
+    {% endif %}
+
+    <p class="note">This tool is a warning layer. It can flag safe emails and miss real attacks. Always verify by a call or in person. The uploaded file is read for the scan and not kept by the app. Attachments are never opened.</p>
+  </div>
+</body>
+</html>
