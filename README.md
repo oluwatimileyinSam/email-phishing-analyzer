@@ -57,6 +57,7 @@ python3 analyzer.py samples/macro_attachment.eml
 3. templates/index.html: the page layout.
 4. samples/: four fake emails for testing.
 5. requirements.txt: the Python package to install.
+6. passenger_wsgi.py: the entry file some web hosts use to run the app.
 
 ## Sample data
 
@@ -105,7 +106,7 @@ This is one layer of defense, not a full antivirus.
 3. It trusts attachment file names, not file contents.
 4. It never opens links, so it cannot check domain age or redirects.
 5. The brand list is short and written by hand.
-6. The web page scans one email at a time. It has no login and runs in debug mode. It is for local use only. Do not put it online as it is.
+6. The web page scans one email at a time. It has one shared password and no lockout. Do not put it online without HTTPS and a strong password.
 
 ## Safety
 
@@ -113,7 +114,7 @@ This is one layer of defense, not a full antivirus.
 2. Use fake or test emails only. Do not commit real emails to this repo.
 3. The web page accepts .eml files up to 5 MB. The app does not keep the uploaded file.
 4. Text from an email is escaped on the page, so email content cannot run as code in the browser.
-5. No keys or tokens are needed yet. Future keys will live in a .env file that Git ignores.
+5. The password and the secret key live in a .env file that Git ignores. Never commit that file.
 
 ## Planned next
 
@@ -121,3 +122,21 @@ This is one layer of defense, not a full antivirus.
 2. Phase 2: file scanner, with file hash checks and real file type checks.
 3. Phase 3: mailbox watcher, with clone phishing detection and new mailbox rule alerts.
 4. Phase 4: alerts and a small dashboard.
+
+## Settings
+
+The web page needs a password. Create a file named .env in the project folder with two lines:
+
+```
+SECRET_KEY=a long random value
+APP_PASSWORD=a password of at least 16 characters
+```
+
+Make a secret key with this command and paste the result after SECRET_KEY=:
+
+```
+python3 -c "import secrets; print(secrets.token_hex(32))"
+```
+
+The .env file is ignored by Git. Never commit it or share it.
+
