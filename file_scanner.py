@@ -1,5 +1,6 @@
 import hashlib
 import os
+import re
 import sys
 
 from analyzer import (
@@ -79,6 +80,24 @@ PROGRAM_TYPES = ["exe", "elf"]
 ARCHIVE_TYPES = ["zip", "rar", "7z", "gz"]
 PROGRAM_EXTENSIONS = [".exe", ".scr", ".com", ".dll", ".sys"]
 
+PDF_RISKS = [
+    (rb"/(?:JavaScript|JS)(?![A-Za-z0-9])", 30, "PDF contains JavaScript: it can run code when the file is opened"),
+    (rb"/(?:OpenAction|AA)(?![A-Za-z0-9])", 10, "PDF has an automatic open action: often harmless, but check it with the other warnings"),
+    (rb"/Launch(?![A-Za-z0-9])", 35, "PDF can launch a program"),
+    (rb"/EmbeddedFile(?![A-Za-z0-9])", 15, "PDF carries an embedded file"),
+]
+
+SCRIPT_EXTENSIONS = [".js", ".jse", ".bat", ".cmd", ".ps1", ".vbs", ".vbe", ".wsf", ".hta"]
+
+SCRIPT_RISKS = [
+    (r"eval\(|unescape\(|fromcharcode|atob\(|invoke-expression|\biex\b|\bexecute\(", 15, "Script: builds or hides code while it runs"),
+    (r"wscript\.shell|activexobject|shell\.application|createobject|powershell|cmd\.exe|\.run\(", 15, "Script: can start other programs or commands"),
+    (r"invoke-webrequest|downloadstring|downloadfile|urldownloadtofile|bitsadmin|certutil|xmlhttp|\bcurl\b|\bwget\b", 20, "Script: can download files from the internet"),
+    (r"-encodedcommand|-enc\b|frombase64string", 20, "Script: uses encoded commands to hide what it does"),
+    (r"-executionpolicy\s+bypass|-windowstyle\s+hidden|-w\s+hidden|-nop\b", 20, "Script: tries to bypass security settings or hide its window"),
+    (r"/(?:quiet|qn|qb|silent|verysilent|norestart|passive)\b", 15, "Script: installs software silently, with no window and no questions"),
+]
+
 
 def detect_type(data):
     if not data:
@@ -87,6 +106,8 @@ def detect_type(data):
     for signature, kind in SIGNATURES:
         if head.startswith(signature):
             return kind
+    if head.startswith((b"\xff\xfe", b"\xfe\xff")):
+        return "text"
     if b"\x00" not in data[:2048]:
         return "text"
     return "unknown"
@@ -139,6 +160,45 @@ def check_real_type(filename, kind):
 
     return findings
 
+def unhide_pdf_names(data):
+    return re.sub(rb"#([0-9A-Fa-f]{2})", lambda m: bytes([int(m.group(1), 16)]), data)
+
+
+def check_pdf(data):
+    findings = []
+    text = unhide_pdf_names(data)
+
+    for pattern, points, reason in PDF_RISKS:
+        if re.search(pattern, text):
+            findings.append((points, reason))
+
+    return findings
+
+
+def read_text(data):
+    if data.startswith((b"\xff\xfe", b"\xfe\xff")):
+        return data.decode("utf-16", errors="ignore").lower()
+    return data.decode("utf-8", errors="ignore").lower()
+
+
+def check_script(filename, data):
+    findings = []
+    extensions = get_extensions(filename)
+    if not extensions or extensions[-1] not in SCRIPT_EXTENSIONS:
+        return findings
+
+    text = read_text(data)
+
+    for pattern, points, reason in SCRIPT_RISKS:
+        found = sorted(set(re.findall(pattern, text)))
+        if found:
+            findings.append((points, reason + ": " + ", ".join(found[:5])))
+
+    if re.search(r"[a-z0-9+/=]{200,}", text):
+        findings.append((15, "Script: contains a very long block of encoded text"))
+
+    return findings
+
 
 def build_file_advice(level, findings):
     reasons = ""
@@ -172,6 +232,12 @@ def build_file_advice(level, findings):
     if "macro" in reasons:
         advice.append("Do not enable macros in Office files from unknown senders.")
 
+    if "pdf" in reasons:
+        advice.append("Do not open this PDF until the sender confirms it.")
+
+    if "script:" in reasons:
+        advice.append("Never run a script you did not write or expect. To read it, open it in a plain text editor, not by double clicking.")
+
     return advice
 
 
@@ -181,6 +247,11 @@ def scan_file(filename, data):
     findings = []
     findings = findings + check_name(filename)
     findings = findings + check_real_type(filename, kind)
+
+    if kind == "pdf":
+        findings = findings + check_pdf(data)
+
+    findings = findings + check_script(filename, data)
 
     score = 0
     for points, reason in findings:
