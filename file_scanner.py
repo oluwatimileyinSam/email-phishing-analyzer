@@ -1,7 +1,9 @@
 import hashlib
+import io 
 import os
 import re
 import sys
+import zipfile
 
 from analyzer import (
     ARCHIVE_EXTENSIONS,
@@ -98,6 +100,8 @@ SCRIPT_RISKS = [
     (r"/(?:quiet|qn|qb|silent|verysilent|norestart|passive)\b", 15, "Script: installs software silently, with no window and no questions"),
 ]
 
+OLE_MACRO_MARKER = "_VBA_PROJECT".encode("utf-16-le")
+MAX_UNPACKED_SIZE = 100 * 1024 * 1024
 
 def detect_type(data):
     if not data:
@@ -200,6 +204,70 @@ def check_script(filename, data):
     return findings
 
 
+def check_old_office(data):
+    findings = []
+    if OLE_MACRO_MARKER in data:
+        findings.append((30, "Old style Office file contains a macro project: macros can run code"))
+    return findings
+
+
+def check_zip(filename, data):
+    findings = []
+
+    try:
+        with zipfile.ZipFile(io.BytesIO(data)) as zf:
+            infos = zf.infolist()[:10000]
+    except (zipfile.BadZipFile, NotImplementedError, ValueError):
+        return [(10, "The archive structure is damaged or unusual and could not be read")]
+
+    names = [info.filename.lower() for info in infos]
+
+    extensions = get_extensions(filename)
+    last = ""
+    if extensions:
+        last = extensions[-1]
+
+    macro_parts = [n for n in names if n.endswith("vbaproject.bin")]
+    if "[content_types].xml" in names and macro_parts:
+        findings.append((30, "Office file contains a macro project (" + macro_parts[0] + "): macros can run code"))
+        if last in [".docx", ".xlsx", ".pptx"]:
+            findings.append((20, "The file name says no macros, but the file contains a macro project"))
+
+    if any(info.flag_bits & 0x1 for info in infos):
+        findings.append((20, "Archive is password protected, so its contents cannot be checked"))
+
+    risky = []
+    macro_files = []
+    doubles = []
+    hiding_types = RISKY_EXTENSIONS + MACRO_EXTENSIONS + ARCHIVE_EXTENSIONS
+
+    for info in infos:
+        base = info.filename.split("/")[-1]
+        inner = get_extensions(base)
+        if not inner:
+            continue
+        if inner[-1] in RISKY_EXTENSIONS:
+            risky.append(base)
+        if inner[-1] in MACRO_EXTENSIONS:
+            macro_files.append(base)
+        if len(inner) >= 2 and inner[-2] in DOCUMENT_EXTENSIONS and inner[-1] in hiding_types:
+            doubles.append(base)
+
+    if risky:
+        findings.append((30, "Archive contains programs or scripts: " + ", ".join(risky[:5])))
+    if macro_files:
+        findings.append((15, "Archive contains macro enabled Office files: " + ", ".join(macro_files[:5])))
+    if doubles:
+        findings.append((25, "Archive contains a file with a double extension: " + ", ".join(doubles[:5])))
+
+    unpacked = sum(info.file_size for info in infos)
+    packed = sum(info.compress_size for info in infos)
+    if unpacked > MAX_UNPACKED_SIZE and unpacked > packed * 100:
+        findings.append((25, "Archive expands to a very large size when unpacked: possible zip bomb"))
+
+    return findings
+
+
 def build_file_advice(level, findings):
     reasons = ""
     for points, reason in findings:
@@ -238,6 +306,12 @@ def build_file_advice(level, findings):
     if "script:" in reasons:
         advice.append("Never run a script you did not write or expect. To read it, open it in a plain text editor, not by double clicking.")
 
+    if "password protected" in reasons:
+        advice.append("Do not open password protected archives from people you cannot verify. Scammers use passwords so scanners cannot look inside.")
+
+    if "zip bomb" in reasons:
+        advice.append("Do not unpack this archive. It could fill your disk.")
+
     return advice
 
 
@@ -252,6 +326,12 @@ def scan_file(filename, data):
         findings = findings + check_pdf(data)
 
     findings = findings + check_script(filename, data)
+
+    if kind == "zip":
+        findings = findings + check_zip(filename, data)
+
+    if kind == "ole":
+        findings = findings + check_old_office(data)
 
     score = 0
     for points, reason in findings:

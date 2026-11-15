@@ -20,6 +20,23 @@ def mark_encrypted(data):
     data[central + 8] = data[central + 8] | 1
     return bytes(data)
 
+def make_big_zip():
+    buffer = io.BytesIO()
+    chunk = b"\x00" * (1024 * 1024)
+    with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as z:
+        with z.open("zeros.bin", "w") as f:
+            for _ in range(120):
+                f.write(chunk)
+    return buffer.getvalue()
+
+
+OLE_DOC = (
+    b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1"
+    + b"\x00" * 120
+    + "_VBA_PROJECT".encode("utf-16-le")
+    + b"\x00" * 20
+)
+
 
 PDF = (
     b"%PDF-1.4\n"
@@ -87,6 +104,17 @@ FILES = {
         ("xl/vbaProject.bin", b"fake macro data for testing"),
     ]),
     "locked.zip": mark_encrypted(make_zip([("secret.txt", b"fake secret")])),
+        "old_report.doc": OLE_DOC,
+    "invoice.docx": make_zip([
+        ("[Content_Types].xml", b"<Types/>"),
+        ("word/document.xml", b"<document/>"),
+        ("word/vbaProject.bin", b"fake macro data for testing"),
+    ]),
+    "statements.zip": make_zip([
+        ("readme.txt", b"hello"),
+        ("invoice.pdf.exe", b"MZ fake program for testing"),
+    ]),
+    "bomb.zip": make_big_zip(),
     "bundle.zip": make_zip([
         ("readme.txt", b"hello"),
         ("setup.exe", b"MZ fake program for testing"),
