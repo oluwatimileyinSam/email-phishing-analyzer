@@ -7,11 +7,12 @@ from dotenv import load_dotenv
 from flask import Flask, redirect, render_template, request, session, url_for
 
 from analyzer import analyze_email, load_email_bytes
+from file_scanner import scan_file
 
 load_dotenv()
 
 app = Flask(__name__)
-app.config["MAX_CONTENT_LENGTH"] = 5 * 1024 * 1024
+app.config["MAX_CONTENT_LENGTH"] = 10 * 1024 * 1024
 app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "")
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 app.config["SESSION_COOKIE_SECURE"] = os.environ.get("APP_ENV") == "production"
@@ -89,11 +90,34 @@ def home():
     return render_template("index.html", result=result, error=error)
 
 
+@app.route("/file", methods=["GET", "POST"])
+@login_required
+def file_page():
+    result = None
+    error = None
+
+    if request.method == "POST":
+        uploaded = request.files.get("upload")
+
+        if uploaded is None or uploaded.filename == "":
+            error = "Please choose a file first."
+        else:
+            name = os.path.basename(uploaded.filename.replace("\\", "/"))
+            data = uploaded.read()
+            if not data:
+                error = "The file is empty."
+            else:
+                use_virustotal = request.form.get("use_vt") == "on"
+                result = scan_file(name, data, use_virustotal)
+
+    return render_template("files.html", result=result, error=error)
+
+
 @app.errorhandler(413)
 def too_large(e):
     if not session.get("logged_in"):
         return redirect(url_for("login"))
-    message = "That file is too large. The limit is 5 MB."
+    message = "That file is too large. The limit is 10 MB."
     return render_template("index.html", result=None, error=message), 413
 
 
