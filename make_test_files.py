@@ -20,6 +20,12 @@ def mark_encrypted(data):
     data[central + 8] = data[central + 8] | 1
     return bytes(data)
 
+EICAR = (
+    b"X5O!P%@AP[4\\PZX54(P^)7CC)7}$"
+    b"EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*"
+)
+
+
 def make_big_zip():
     buffer = io.BytesIO()
     chunk = b"\x00" * (1024 * 1024)
@@ -89,6 +95,7 @@ JS = (
 
 FILES = {
     "notes.txt": b"Meeting notes. Nothing to see here.\n",
+    "eicar_test.txt": EICAR,
     "report.pdf": PDF,
     "clean.pdf": PDF_CLEAN,
     "hidden.pdf": PDF_HIDDEN,

@@ -1,9 +1,14 @@
 import hashlib
-import io 
+import io
+import json
 import os
 import re
 import sys
+import urllib.error
+import urllib.request
 import zipfile
+
+from dotenv import load_dotenv
 
 from analyzer import (
     ARCHIVE_EXTENSIONS,
@@ -102,6 +107,13 @@ SCRIPT_RISKS = [
 
 OLE_MACRO_MARKER = "_VBA_PROJECT".encode("utf-16-le")
 MAX_UNPACKED_SIZE = 100 * 1024 * 1024
+
+EICAR = (
+    b"X5O!P%@AP[4\\PZX54(P^)7CC)7}$"
+    b"EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*"
+)
+
+VT_URL = "https://www.virustotal.com/api/v3/files/"
 
 def detect_type(data):
     if not data:
@@ -268,6 +280,62 @@ def check_zip(filename, data):
     return findings
 
 
+def check_eicar(data):
+    findings = []
+    if EICAR in data:
+        findings.append((60, "Contains the EICAR test string. It is harmless, but antivirus tools are built to treat it as a virus"))
+    return findings
+
+
+def lookup_virustotal(sha256):
+    key = os.environ.get("VT_API_KEY", "")
+    if not key:
+        return None, "VirusTotal lookup skipped: no VT_API_KEY found in the .env file."
+
+    request = urllib.request.Request(
+        VT_URL + sha256,
+        headers={"x-apikey": key, "accept": "application/json"},
+    )
+
+    try:
+        with urllib.request.urlopen(request, timeout=10) as response:
+            body = json.loads(response.read().decode("utf-8"))
+    except urllib.error.HTTPError as error:
+        if error.code == 404:
+            return None, "VirusTotal has never seen this file hash. That is normal for new or private files. It does not mean the file is safe."
+        if error.code == 401:
+            return None, "VirusTotal refused the key. Check VT_API_KEY in the .env file."
+        if error.code == 429:
+            return None, "VirusTotal limit reached. The free key allows 4 lookups a minute and 500 a day."
+        return None, "VirusTotal lookup failed with code " + str(error.code) + "."
+    except (OSError, ValueError):
+        return None, "VirusTotal could not be reached."
+
+    try:
+        return body["data"]["attributes"]["last_analysis_stats"], ""
+    except (KeyError, TypeError):
+        return None, "VirusTotal sent an answer that could not be read."
+
+
+def check_virustotal(sha256):
+    stats, problem = lookup_virustotal(sha256)
+    if stats is None:
+        return [], [problem]
+
+    malicious = stats.get("malicious", 0)
+    suspicious = stats.get("suspicious", 0)
+    total = malicious + suspicious + stats.get("undetected", 0) + stats.get("harmless", 0)
+
+    if malicious >= 5:
+        return [(60, "VirusTotal: " + str(malicious) + " of " + str(total) + " security vendors flag this file as malicious")], []
+    if malicious >= 1:
+        return [(30, "VirusTotal: " + str(malicious) + " of " + str(total) + " security vendors flag this file as malicious. A few flags can be false alarms")], []
+    if suspicious >= 1:
+        return [(10, "VirusTotal: " + str(suspicious) + " of " + str(total) + " security vendors flag this file as suspicious")], []
+
+    return [], ["VirusTotal: none of " + str(total) + " security vendors flag this file. That lowers the risk but does not remove it."]
+
+
 def build_file_advice(level, findings):
     reasons = ""
     for points, reason in findings:
@@ -312,11 +380,18 @@ def build_file_advice(level, findings):
     if "zip bomb" in reasons:
         advice.append("Do not unpack this archive. It could fill your disk.")
 
+    if "eicar" in reasons:
+        advice.append("This is the standard antivirus test string. It is harmless, so it is safe to delete.")
+
+    if "virustotal" in reasons:
+        advice.append("Security vendors flagged this file. Do not open it.")
+
     return advice
 
 
-def scan_file(filename, data):
+def scan_file(filename, data, use_virustotal=False):
     kind = detect_type(data)
+    sha256 = hashlib.sha256(data).hexdigest()
 
     findings = []
     findings = findings + check_name(filename)
@@ -333,6 +408,14 @@ def scan_file(filename, data):
     if kind == "ole":
         findings = findings + check_old_office(data)
 
+    findings = findings + check_eicar(data)
+
+    notes = []
+    if use_virustotal:
+        vt_findings, vt_notes = check_virustotal(sha256)
+        findings = findings + vt_findings
+        notes = notes + vt_notes
+
     score = 0
     for points, reason in findings:
         score = score + points
@@ -343,25 +426,31 @@ def scan_file(filename, data):
     return {
         "name": filename,
         "size": len(data),
-        "sha256": hashlib.sha256(data).hexdigest(),
+        "sha256": sha256,
         "type": LABELS[kind],
         "score": score,
         "level": level,
         "findings": findings,
         "advice": build_file_advice(level, findings),
+        "notes": notes,
     }
 
 
 def main():
-    if len(sys.argv) < 2:
-        print("Usage: python3 file_scanner.py file_samples/notes.txt")
+    load_dotenv()
+
+    args = [a for a in sys.argv[1:] if not a.startswith("--")]
+    use_virustotal = "--vt" in sys.argv
+
+    if not args:
+        print("Usage: python3 file_scanner.py file_samples/notes.txt [--vt]")
         return
 
-    path = sys.argv[1]
+    path = args[0]
     with open(path, "rb") as f:
         data = f.read()
 
-    result = scan_file(os.path.basename(path), data)
+    result = scan_file(os.path.basename(path), data, use_virustotal)
 
     print("File:", result["name"])
     print("Size:", result["size"], "bytes")
@@ -384,6 +473,12 @@ def main():
     else:
         for line in result["advice"]:
             print(line)
+
+    if result["notes"]:
+        print()
+        print("Notes:")
+        for note in result["notes"]:
+            print("  " + note)
 
 
 if __name__ == "__main__":
