@@ -4,3 +4,5 @@ __pycache__/
 .DS_Store
 *.zip
 file_samples/
+token_cache.json
+*.db
