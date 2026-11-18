@@ -58,15 +58,15 @@ def get_token():
     return result["access_token"]
 
 
-def graph_get(path, token):
+def fetch(path, token, accept):
     request = urllib.request.Request(
         GRAPH_URL + path,
-        headers={"Authorization": "Bearer " + token, "Accept": "application/json"},
+        headers={"Authorization": "Bearer " + token, "Accept": accept},
     )
 
     try:
-        with urllib.request.urlopen(request, timeout=20) as response:
-            return json.loads(response.read().decode("utf-8"))
+        with urllib.request.urlopen(request, timeout=30) as response:
+            return response.read()
     except urllib.error.HTTPError as error:
         if error.code == 401:
             raise RuntimeError("Microsoft rejected the token. Delete token_cache.json and sign in again.")
@@ -75,3 +75,15 @@ def graph_get(path, token):
         raise RuntimeError("Microsoft Graph refused the request with code " + str(error.code) + ".")
     except (OSError, ValueError):
         raise RuntimeError("Microsoft Graph could not be reached.")
+
+
+def graph_get(path, token):
+    body = fetch(path, token, "application/json")
+    try:
+        return json.loads(body.decode("utf-8"))
+    except ValueError:
+        raise RuntimeError("Microsoft Graph sent an answer that could not be read.")
+
+
+def graph_get_raw(path, token):
+    return fetch(path, token, "*/*")

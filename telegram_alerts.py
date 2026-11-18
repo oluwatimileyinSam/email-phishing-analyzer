@@ -26,6 +26,9 @@ def format_alert(alert):
 
     for points, reason in alert["reasons"]:
         lines.append("+" + str(points) + " " + reason)
+        
+    for note in alert.get("notes", []):
+        lines.append(note)
 
     lines.append("")
     lines.append("What to do:")
