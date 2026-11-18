@@ -1,6 +1,7 @@
 import urllib.parse
 
 import store
+import telegram_alerts
 from graph_client import get_token, graph_get
 from rule_checks import analyze_rule, build_rule_advice
 from show_rules import describe
@@ -139,12 +140,21 @@ def main():
         token = get_token()
         conn = store.connect()
         analyses, alerts, first_run = check_mailbox_rules(token, conn)
-        conn.close()
+        for alert in alerts:
+            store.add_pending(conn, telegram_alerts.format_alert(alert))
+        conn.commit()
     except RuntimeError as error:
         print("Stopped:", error)
         return
 
     print_report(analyses, alerts, first_run)
+
+    sent, left, problem = telegram_alerts.send_pending(conn)
+    if sent or left or problem:
+        print()
+        print("Telegram: sent", sent, "and", left, "waiting.", problem)
+
+    conn.close()
 
 
 if __name__ == "__main__":

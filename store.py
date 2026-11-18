@@ -8,6 +8,7 @@ def connect():
     conn = sqlite3.connect(DB_FILE)
     conn.execute("CREATE TABLE IF NOT EXISTS rules (rule_id TEXT PRIMARY KEY, name TEXT, fingerprint TEXT)")
     conn.execute("CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT)")
+    conn.execute("CREATE TABLE IF NOT EXISTS pending_alerts (id INTEGER PRIMARY KEY AUTOINCREMENT, text TEXT)")
     os.chmod(DB_FILE, 0o600)
     return conn
 
@@ -39,3 +40,15 @@ def get_meta(conn, key):
 
 def set_meta(conn, key, value):
     conn.execute("INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)", (key, value))
+
+
+def add_pending(conn, text):
+    conn.execute("INSERT INTO pending_alerts (text) VALUES (?)", (text,))
+
+
+def get_pending(conn):
+    return conn.execute("SELECT id, text FROM pending_alerts ORDER BY id").fetchall()
+
+
+def delete_pending(conn, pending_id):
+    conn.execute("DELETE FROM pending_alerts WHERE id = ?", (pending_id,))
