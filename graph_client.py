@@ -28,7 +28,7 @@ def save_cache(cache):
         os.chmod(CACHE_FILE, 0o600)
 
 
-def get_token():
+def get_token(interactive=True):
     load_dotenv()
     client_id = os.environ.get("MS_CLIENT_ID", "")
     if not client_id:
@@ -43,6 +43,8 @@ def get_token():
         result = app.acquire_token_silent(SCOPES, account=accounts[0])
 
     if not result:
+        if not interactive:
+            raise RuntimeError("The saved sign in is missing or expired.")
         flow = app.initiate_device_flow(scopes=SCOPES)
         if "user_code" not in flow:
             raise RuntimeError("Could not start the sign in. Check MS_CLIENT_ID and the app settings.")

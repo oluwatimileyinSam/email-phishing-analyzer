@@ -6,3 +6,5 @@ __pycache__/
 file_samples/
 token_cache.json
 *.db
+*.log
+watcher.lock
