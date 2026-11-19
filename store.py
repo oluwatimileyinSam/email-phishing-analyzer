@@ -1,3 +1,4 @@
+import json
 import os
 import sqlite3
 
@@ -10,6 +11,10 @@ def connect():
     conn.execute("CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT)")
     conn.execute("CREATE TABLE IF NOT EXISTS pending_alerts (id INTEGER PRIMARY KEY AUTOINCREMENT, text TEXT)")
     conn.execute("CREATE TABLE IF NOT EXISTS seen_messages (message_id TEXT PRIMARY KEY, received TEXT)")
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS fingerprints (message_id TEXT PRIMARY KEY, received TEXT, sender TEXT, "
+        "sender_domain TEXT, subject_hash TEXT, hashes TEXT, domains TEXT)"
+    )
     os.chmod(DB_FILE, 0o600)
     return conn
 
@@ -65,3 +70,40 @@ def mark_seen(conn, message_id, received):
         "INSERT OR REPLACE INTO seen_messages (message_id, received) VALUES (?, ?)",
         (message_id, received),
     )
+
+
+
+def save_fingerprint(conn, fp):
+    conn.execute(
+        "INSERT OR REPLACE INTO fingerprints "
+        "(message_id, received, sender, sender_domain, subject_hash, hashes, domains) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (
+            fp["message_id"], fp["received"], fp["sender"], fp["sender_domain"],
+            fp["subject_hash"], json.dumps(fp["hashes"]), json.dumps(fp["domains"]),
+        ),
+    )
+    conn.execute(
+        "DELETE FROM fingerprints WHERE message_id NOT IN "
+        "(SELECT message_id FROM fingerprints ORDER BY received DESC LIMIT 2000)"
+    )
+
+
+def recent_fingerprints(conn, limit=500):
+    rows = conn.execute(
+        "SELECT message_id, received, sender, sender_domain, subject_hash, hashes, domains "
+        "FROM fingerprints ORDER BY received DESC LIMIT ?",
+        (limit,),
+    ).fetchall()
+
+    found = []
+    for row in rows:
+        found.append({
+            "message_id": row[0],
+            "received": row[1],
+            "sender": row[2],
+            "sender_domain": row[3],
+            "subject_hash": row[4],
+            "hashes": json.loads(row[5]),
+            "domains": json.loads(row[6]),
+        })
+    return found

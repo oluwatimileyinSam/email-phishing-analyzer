@@ -1,4 +1,5 @@
 from analyzer import analyze_email, get_level, load_email_bytes
+from clone_checks import find_clones, fingerprint_message
 from file_scanner import scan_file
 
 MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024
@@ -28,12 +29,22 @@ def scan_attachments(msg):
     return results, notes
 
 
-def check_raw_message(raw):
+def check_raw_message(raw, history=None, message_id="", received=""):
     msg = load_email_bytes(raw)
     email_result = analyze_email(msg)
+
+    fingerprint = fingerprint_message(msg, message_id, received)
+    clone_findings = find_clones(fingerprint, history or [])
+    findings = email_result["findings"] + clone_findings
+
+    base_score = 0
+    for points, reason in findings:
+        base_score = base_score + points
+    base_score = min(base_score, 100)
+
     attachments, notes = scan_attachments(msg)
 
-    score = email_result["score"]
+    score = base_score
     for item in attachments:
         score = max(score, item["score"])
 
@@ -49,24 +60,30 @@ def check_raw_message(raw):
             risky_attachments = True
     attachment_lines = attachment_lines + notes
 
+    advice = []
     if email_result["findings"]:
         advice = list(email_result["advice"])
-        if risky_attachments:
-            advice.append("Do not open the attachments until the sender confirms them.")
-    else:
+    if clone_findings:
+        advice.append("This email looks like a copy of an earlier message. Contact the sender with a phone number you already have before you click or pay.")
+
+    if not findings:
         advice = [
             "Do not open the attachments in this email.",
             "Verify the sender and the files through a call or in person.",
             "Use a phone number you already have. Never use one from this email.",
         ]
+    elif risky_attachments:
+        advice.append("Do not open the attachments until the sender confirms them.")
 
     return {
         "from": email_result["from"],
         "subject": email_result["subject"],
         "score": score,
         "level": get_level(score),
-        "reasons": email_result["findings"],
+        "reasons": findings,
+        "clone_findings": clone_findings,
         "attachment_lines": attachment_lines,
         "attachments": attachments,
         "advice": advice,
+        "fingerprint": fingerprint,
     }
