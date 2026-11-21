@@ -7,10 +7,11 @@ import urllib.request
 from dotenv import load_dotenv
 
 import store
+from paths import path_in_app
 
 
 def read_settings():
-    load_dotenv()
+    load_dotenv(path_in_app(".env"))
     token = os.environ.get("TELEGRAM_BOT_TOKEN", "")
     chat_id = os.environ.get("TELEGRAM_CHAT_ID", "")
     return token, chat_id
@@ -26,7 +27,7 @@ def format_alert(alert):
 
     for points, reason in alert["reasons"]:
         lines.append("+" + str(points) + " " + reason)
-        
+
     for note in alert.get("notes", []):
         lines.append(note)
 

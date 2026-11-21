@@ -6,9 +6,11 @@ import urllib.request
 import msal
 from dotenv import load_dotenv
 
+from paths import path_in_app
+
 AUTHORITY = "https://login.microsoftonline.com/consumers"
 SCOPES = ["Mail.Read", "MailboxSettings.Read"]
-CACHE_FILE = "token_cache.json"
+CACHE_FILE = path_in_app("token_cache.json")
 GRAPH_URL = "https://graph.microsoft.com/v1.0"
 
 
@@ -29,7 +31,7 @@ def save_cache(cache):
 
 
 def get_token(interactive=True):
-    load_dotenv()
+    load_dotenv(path_in_app(".env"))
     client_id = os.environ.get("MS_CLIENT_ID", "")
     if not client_id:
         raise RuntimeError("Set MS_CLIENT_ID in the .env file.")

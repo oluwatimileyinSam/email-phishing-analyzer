@@ -8,10 +8,11 @@ import store
 import telegram_alerts
 from graph_client import get_token
 from mail_watcher import check_new_mail, make_mail_alert, print_mail_report
+from paths import path_in_app
 from rule_watcher import check_mailbox_rules, print_report
 
-LOCK_FILE = "watcher.lock"
-LOG_FILE = "watcher.log"
+LOCK_FILE = path_in_app("watcher.lock")
+LOG_FILE = path_in_app("watcher.log")
 
 
 def setup_log():
@@ -35,6 +36,13 @@ def warn_sign_in(conn, reason):
     )
     store.add_pending(conn, text)
     store.set_meta(conn, "signin_alert_day", today)
+    conn.commit()
+
+
+def record_run(conn, line, problems):
+    store.set_meta(conn, "last_run", store.now_utc())
+    store.set_meta(conn, "last_summary", line)
+    store.set_meta(conn, "last_problems", "\n".join(problems))
     conn.commit()
 
 
@@ -70,6 +78,7 @@ def run_checks(token, conn, quiet, log):
         problems.append("telegram: " + note)
 
     line = "rules=" + str(rule_count) + " new_mail=" + str(mail_count) + " alerts_sent=" + str(sent) + " waiting=" + str(left)
+    record_run(conn, line, problems)
     log.info(line)
     for problem in problems:
         log.info("problem " + problem)
@@ -101,6 +110,7 @@ def main():
             token = get_token(interactive=False)
         except RuntimeError as error:
             warn_sign_in(conn, str(error))
+            record_run(conn, "stopped", [str(error)])
             telegram_alerts.send_pending(conn)
             log.info("stopped: " + str(error))
             print("Stopped:", error)

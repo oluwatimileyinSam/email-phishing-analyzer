@@ -1,12 +1,27 @@
+import datetime
 import json
 import os
 import sqlite3
 
-DB_FILE = "watcher.db"
+from paths import path_in_app
+
+
+def db_path():
+    name = os.environ.get("WATCHER_DB", "watcher.db")
+    if os.path.isabs(name):
+        return name
+    return path_in_app(name)
+
+
+DB_FILE = db_path()
+
+
+def now_utc():
+    return datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
 
 
 def connect():
-    conn = sqlite3.connect(DB_FILE)
+    conn = sqlite3.connect(DB_FILE, timeout=10)
     conn.execute("CREATE TABLE IF NOT EXISTS rules (rule_id TEXT PRIMARY KEY, name TEXT, fingerprint TEXT)")
     conn.execute("CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT)")
     conn.execute("CREATE TABLE IF NOT EXISTS pending_alerts (id INTEGER PRIMARY KEY AUTOINCREMENT, text TEXT)")
@@ -14,6 +29,10 @@ def connect():
     conn.execute(
         "CREATE TABLE IF NOT EXISTS fingerprints (message_id TEXT PRIMARY KEY, received TEXT, sender TEXT, "
         "sender_domain TEXT, subject_hash TEXT, hashes TEXT, domains TEXT)"
+    )
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS alert_history (id INTEGER PRIMARY KEY AUTOINCREMENT, created TEXT, "
+        "level TEXT, title TEXT, text TEXT)"
     )
     os.chmod(DB_FILE, 0o600)
     return conn
@@ -51,6 +70,16 @@ def set_meta(conn, key, value):
 def add_pending(conn, text):
     conn.execute("INSERT INTO pending_alerts (text) VALUES (?)", (text,))
 
+    first_line = text.split("\n", 1)[0]
+    level, separator, title = first_line.partition(": ")
+    conn.execute(
+        "INSERT INTO alert_history (created, level, title, text) VALUES (?, ?, ?, ?)",
+        (now_utc(), level, title, text),
+    )
+    conn.execute(
+        "DELETE FROM alert_history WHERE id NOT IN (SELECT id FROM alert_history ORDER BY id DESC LIMIT 1000)"
+    )
+
 
 def get_pending(conn):
     return conn.execute("SELECT id, text FROM pending_alerts ORDER BY id").fetchall()
@@ -70,7 +99,6 @@ def mark_seen(conn, message_id, received):
         "INSERT OR REPLACE INTO seen_messages (message_id, received) VALUES (?, ?)",
         (message_id, received),
     )
-
 
 
 def save_fingerprint(conn, fp):
