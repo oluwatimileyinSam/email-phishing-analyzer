@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% from "_macros.html" import badge %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<h1>Dashboard</h1>
+<p class="sub">What the mailbox watcher found. Times are in UTC.</p>
+
+<div class="card">
+  <h2>Watcher status</h2>
+  <p><span class="pill {{ d.status.status }}">{{ d.status.text }}</span></p>
+  {% if d.status.last_run %}
+  <p class="muted">Last run: {{ d.status.last_run }} UTC ({{ d.status.minutes }} minutes ago)</p>
+  <p class="muted">{{ d.status.summary }}</p>
+  {% endif %}
+  {% if d.status.problems %}
+  <ul>
+    {% for problem in d.status.problems %}
+    <li>{{ problem }}</li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+  {% if d.pending %}
+  <p>{{ d.pending }} alert(s) are waiting to be sent to Telegram.</p>
+  {% endif %}
+</div>
+
+<div class="stats">
+  <div class="stat"><div class="num">{{ d.week_total }}</div><div class="label">Alerts in 7 days</div></div>
+  <div class="stat"><div class="num">{{ d.levels["HIGH"] }}</div><div class="label">High</div></div>
+  <div class="stat"><div class="num">{{ d.levels["MEDIUM"] }}</div><div class="label">Medium</div></div>
+  <div class="stat"><div class="num">{{ d.rules }}</div><div class="label">Mailbox rules known</div></div>
+  <div class="stat"><div class="num">{{ d.messages }}</div><div class="label">Messages checked</div></div>
+  <div class="stat"><div class="num">{{ d.fingerprints }}</div><div class="label">Fingerprints kept</div></div>
+</div>
+
+<div class="card">
+  <h2>Alerts per day</h2>
+  <div class="chart">
+    {% for day in d.days %}
+    <div class="col">
+      <div class="n">{{ day.count }}</div>
+      <div class="bar" style="height: {{ day.percent }}%"></div>
+      <div class="d">{{ day.label }}</div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<div class="card">
+  <h2>Recent alerts</h2>
+  {% if d.recent %}
+  <div class="scroll">
+    <table>
+      <tr><th>Time (UTC)</th><th>Level</th><th>Alert</th></tr>
+      {% for item in d.recent %}
+      <tr>
+        <td>{{ item.created }}</td>
+        <td>{{ badge(item.level) }}</td>
+        <td><a href="/alerts/{{ item.id }}">{{ item.title }}</a></td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+  <p><a href="/alerts">See all alerts</a></p>
+  {% else %}
+  <p class="muted">No alerts yet.</p>
+  {% endif %}
+</div>
+
+<p class="note">This tool is a warning layer. It can flag safe items and miss real attacks. Always verify by a call or in person.</p>
+{% endblock %}

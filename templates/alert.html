@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% from "_macros.html" import badge %}
+{% block title %}Alert {{ item.id }}{% endblock %}
+{% block content %}
+<p><a href="/alerts">Back to alerts</a></p>
+<h1>{{ badge(item.level) }} {{ item.title }}</h1>
+<p class="sub">{{ item.created }} UTC</p>
+<div class="card"><pre class="text">{{ item.text }}</pre></div>
+{% endblock %}

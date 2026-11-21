@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>{% block title %}Mail and File Defense{% endblock %}</title>
+  <style>
+    :root {
+      --bg: #f4f6f8; --card: #ffffff; --text: #1b1f24; --muted: #5a6270; --line: #d9dee5;
+      --brand: #1f3a5f; --link: #1d5fa8; --btn: #1f3a5f; --btn-text: #ffffff;
+      --high: #b3261e; --medium: #c76a00; --low: #8a6d00; --info: #2f6f9f; --warning: #7a3fbf; --none: #5a6270;
+      --ok: #1e7a46; --late: #c76a00; --problem: #b3261e; --never: #5a6270;
+      --errbg: #fdecea; --errline: #e5a29b; --bar: #3a6ea5;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #14171c; --card: #1d2229; --text: #e6e9ee; --muted: #9aa3b0; --line: #333b46;
+        --brand: #9ec0ee; --link: #9ec0ee; --errbg: #3a1f1d; --errline: #7a3a35; --bar: #6f9fd6;
+      }
+    }
+    * { box-sizing: border-box; }
+    body { font-family: Arial, Helvetica, sans-serif; background: var(--bg); color: var(--text); margin: 0; line-height: 1.45; }
+    a { color: var(--link); }
+    .top { background: var(--card); border-bottom: 1px solid var(--line); }
+    .top-inner { max-width: 980px; margin: 0 auto; padding: 12px 16px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+    .brand { font-weight: bold; color: var(--brand); margin-right: 12px; text-decoration: none; }
+    .nav a { display: inline-block; padding: 6px 10px; border-radius: 6px; text-decoration: none; color: var(--muted); }
+    .nav a.active { background: var(--bg); color: var(--text); font-weight: bold; }
+    .push { margin-left: auto; }
+    .wrap { max-width: 980px; margin: 0 auto; padding: 20px 16px 48px; }
+    .narrow { max-width: 440px; }
+    h1 { font-size: 24px; margin: 4px 0 4px; }
+    h2 { font-size: 16px; margin: 0 0 10px; }
+    .sub { color: var(--muted); margin: 0 0 14px; }
+    .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 16px; margin-top: 14px; }
+    .error { background: var(--errbg); border-color: var(--errline); }
+    .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-top: 14px; }
+    .stat { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 14px; }
+    .stat .num { font-size: 28px; font-weight: bold; }
+    .stat .label { color: var(--muted); font-size: 13px; }
+    .badge { display: inline-block; padding: 2px 10px; border-radius: 12px; color: #ffffff; font-weight: bold; font-size: 12px; }
+    .HIGH { background: var(--high); }
+    .MEDIUM { background: var(--medium); }
+    .LOW { background: var(--low); }
+    .INFO { background: var(--info); }
+    .WARNING { background: var(--warning); }
+    .NOWARN { background: var(--none); }
+    .pill { display: inline-block; padding: 4px 12px; border-radius: 14px; color: #ffffff; font-weight: bold; font-size: 13px; }
+    .pill.ok { background: var(--ok); }
+    .pill.late { background: var(--late); }
+    .pill.problem { background: var(--problem); }
+    .pill.never { background: var(--never); }
+    .chart { display: flex; align-items: flex-end; gap: 10px; height: 130px; margin-top: 8px; }
+    .col { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; height: 100%; }
+    .bar { width: 100%; background: var(--bar); border-radius: 4px 4px 0 0; min-height: 2px; }
+    .col .n { font-size: 12px; color: var(--muted); }
+    .col .d { font-size: 12px; color: var(--muted); margin-top: 4px; }
+    .scroll { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { text-align: left; padding: 8px; border-bottom: 1px solid var(--line); font-size: 14px; vertical-align: top; }
+    th { color: var(--muted); font-weight: normal; font-size: 13px; }
+    .chips a { display: inline-block; padding: 4px 12px; margin: 0 6px 6px 0; border: 1px solid var(--line); border-radius: 14px; text-decoration: none; color: var(--text); font-size: 13px; }
+    .chips a.on { background: var(--btn); color: var(--btn-text); border-color: var(--btn); }
+    .score { font-size: 28px; font-weight: bold; margin-right: 10px; }
+    .plus { font-weight: bold; margin-right: 6px; }
+    .hash { font-family: Courier, monospace; font-size: 12px; word-break: break-all; }
+    .text { white-space: pre-wrap; word-break: break-word; font-family: Courier, monospace; font-size: 13px; margin: 0; }
+    .muted { color: var(--muted); font-size: 13px; }
+    .btn, button { background: var(--btn); color: var(--btn-text); border: 0; border-radius: 6px; padding: 8px 16px; font-size: 14px; cursor: pointer; text-decoration: none; display: inline-block; }
+    input[type=password] { width: 100%; padding: 8px; font-size: 14px; margin-bottom: 12px; }
+    .note { color: var(--muted); font-size: 13px; margin-top: 20px; }
+    ul, ol { padding-left: 22px; margin: 6px 0; }
+    li { margin-bottom: 4px; }
+  </style>
+</head>
+<body>
+  {% if session.get("logged_in") %}
+  <div class="top">
+    <div class="top-inner">
+      <a class="brand" href="/">Mail and File Defense</a>
+      <div class="nav">
+        <a href="/" class="{{ 'active' if active == 'dashboard' else '' }}">Dashboard</a>
+        <a href="/alerts" class="{{ 'active' if active == 'alerts' else '' }}">Alerts</a>
+        <a href="/email" class="{{ 'active' if active == 'email' else '' }}">Scan email</a>
+        <a href="/file" class="{{ 'active' if active == 'file' else '' }}">Scan file</a>
+      </div>
+      <div class="nav push"><a href="/logout">Log out</a></div>
+    </div>
+  </div>
+  {% endif %}
+  <div class="wrap {% block wrapclass %}{% endblock %}">
+    {% block content %}{% endblock %}
+  </div>
+</body>
+</html>

@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% from "_macros.html" import badge %}
+{% block title %}Scan email{% endblock %}
+{% block content %}
+<h1>Scan an email</h1>
+<p class="sub">Upload a saved email (.eml file). You get a risk score, the reasons, and advice on how to verify it.</p>
+
+<div class="card">
+  <form method="post" enctype="multipart/form-data">
+    <input type="file" name="email_file" accept=".eml">
+    <button type="submit">Scan email</button>
+  </form>
+</div>
+
+{% if error %}
+<div class="card error">{{ error }}</div>
+{% endif %}
+
+{% if result %}
+<div class="card">
+  <p><strong>From:</strong> {{ result["from"] }}</p>
+  <p><strong>Subject:</strong> {{ result["subject"] }}</p>
+  <p><span class="score">{{ result.score }} / 100</span> {{ badge(result.level) }}</p>
+
+  {% if result.findings %}
+  <h2>Reasons</h2>
+  <ul>
+    {% for points, reason in result.findings %}
+    <li><span class="plus">+{{ points }}</span>{{ reason }}</li>
+    {% endfor %}
+  </ul>
+  <h2>What to do</h2>
+  {% else %}
+  <h2>Result</h2>
+  {% endif %}
+
+  <ol>
+    {% for line in result.advice %}
+    <li>{{ line }}</li>
+    {% endfor %}
+  </ol>
+</div>
+{% endif %}
+
+<p class="note">This tool is a warning layer. It can flag safe emails and miss real attacks. Always verify by a call or in person. The uploaded file is read for the scan and not kept by the app. Attachments are never opened.</p>
+{% endblock %}

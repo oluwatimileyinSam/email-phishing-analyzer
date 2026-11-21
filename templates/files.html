@@ -1,91 +1,58 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Scan a file</title>
-  <style>
-    body { font-family: Arial, Helvetica, sans-serif; background: #f4f6f8; color: #1b1f24; margin: 0; }
-    .wrap { max-width: 720px; margin: 0 auto; padding: 24px 16px 48px; }
-    h1 { font-size: 26px; margin-bottom: 4px; }
-    h2 { font-size: 16px; margin: 18px 0 6px; }
-    .sub { color: #5a6270; margin-top: 0; }
-    .card { background: #ffffff; border: 1px solid #d9dee5; border-radius: 8px; padding: 18px; margin-top: 16px; }
-    .error { background: #fdecea; border-color: #e5a29b; }
-    .badge { display: inline-block; padding: 4px 12px; border-radius: 12px; color: #ffffff; font-weight: bold; }
-    .HIGH { background: #b3261e; }
-    .MEDIUM { background: #c76a00; }
-    .LOW { background: #8a6d00; }
-    .NOWARN { background: #5a6270; }
-    .score { font-size: 28px; font-weight: bold; margin-right: 10px; }
-    .plus { font-weight: bold; margin-right: 6px; }
-    .hash { font-family: Courier, monospace; font-size: 12px; word-break: break-all; }
-    .small { font-size: 13px; color: #5a6270; }
-    button { background: #1f3a5f; color: #ffffff; border: 0; border-radius: 6px; padding: 8px 16px; font-size: 14px; cursor: pointer; }
-    .note { color: #5a6270; font-size: 13px; margin-top: 20px; }
-    li { margin-bottom: 4px; }
-  </style>
-</head>
-<body>
-  <div class="wrap">
-    <h1>Scan a file</h1>
-    <p class="sub">Upload a file to check it. You get a risk score, the reasons, and advice. The file is never opened or run.</p>
-    <p class="sub"><a href="/">Scan email</a> | <a href="/file">Scan file</a> | <a href="/logout">Log out</a></p>
+{% extends "base.html" %}
+{% from "_macros.html" import badge %}
+{% block title %}Scan file{% endblock %}
+{% block content %}
+<h1>Scan a file</h1>
+<p class="sub">Upload a file to check it. You get a risk score, the reasons, and advice. The file is never opened or run.</p>
 
-    <div class="card">
-      <form method="post" enctype="multipart/form-data">
-        <input type="file" name="upload">
-        <button type="submit">Scan file</button>
-        <p class="small"><label><input type="checkbox" name="use_vt"> Also check the file hash on VirusTotal. Only the hash is sent, never the file.</label></p>
-      </form>
-    </div>
+<div class="card">
+  <form method="post" enctype="multipart/form-data">
+    <input type="file" name="upload">
+    <button type="submit">Scan file</button>
+    <p class="muted"><label><input type="checkbox" name="use_vt"> Also check the file hash on VirusTotal. Only the hash is sent, never the file.</label></p>
+  </form>
+</div>
 
-    {% if error %}
-    <div class="card error">{{ error }}</div>
-    {% endif %}
+{% if error %}
+<div class="card error">{{ error }}</div>
+{% endif %}
 
-    {% if result %}
-    {% set cls = "NOWARN" if result.level == "NO WARNINGS" else result.level %}
-    <div class="card">
-      <p><strong>File:</strong> {{ result["name"] }}</p>
-      <p><strong>Size:</strong> {{ result["size"] }} bytes</p>
-      <p><strong>Type:</strong> {{ result["type"] }}</p>
-      <p><strong>SHA256:</strong> <span class="hash">{{ result["sha256"] }}</span></p>
-      <p>
-        <span class="score">{{ result.score }} / 100</span>
-        <span class="badge {{ cls }}">{{ result.level }}</span>
-      </p>
+{% if result %}
+<div class="card">
+  <p><strong>File:</strong> {{ result["name"] }}</p>
+  <p><strong>Size:</strong> {{ result["size"] }} bytes</p>
+  <p><strong>Type:</strong> {{ result["type"] }}</p>
+  <p><strong>SHA256:</strong> <span class="hash">{{ result["sha256"] }}</span></p>
+  <p><span class="score">{{ result.score }} / 100</span> {{ badge(result.level) }}</p>
 
-      {% if result.findings %}
-      <h2>Reasons</h2>
-      <ul>
-        {% for points, reason in result.findings %}
-        <li><span class="plus">+{{ points }}</span>{{ reason }}</li>
-        {% endfor %}
-      </ul>
-      <h2>What to do</h2>
-      {% else %}
-      <h2>Result</h2>
-      {% endif %}
+  {% if result.findings %}
+  <h2>Reasons</h2>
+  <ul>
+    {% for points, reason in result.findings %}
+    <li><span class="plus">+{{ points }}</span>{{ reason }}</li>
+    {% endfor %}
+  </ul>
+  <h2>What to do</h2>
+  {% else %}
+  <h2>Result</h2>
+  {% endif %}
 
-      <ol>
-        {% for line in result.advice %}
-        <li>{{ line }}</li>
-        {% endfor %}
-      </ol>
+  <ol>
+    {% for line in result.advice %}
+    <li>{{ line }}</li>
+    {% endfor %}
+  </ol>
 
-      {% if result.notes %}
-      <h2>Notes</h2>
-      <ul>
-        {% for note in result.notes %}
-        <li>{{ note }}</li>
-        {% endfor %}
-      </ul>
-      {% endif %}
-    </div>
-    {% endif %}
+  {% if result.notes %}
+  <h2>Notes</h2>
+  <ul>
+    {% for note in result.notes %}
+    <li>{{ note }}</li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+</div>
+{% endif %}
 
-    <p class="note">This tool is a warning layer. It can flag safe files and miss real malware. Always verify by a call or in person. The uploaded file is read for the scan and not kept by the app. Files are never opened or run.</p>
-  </div>
-</body>
-</html>
+<p class="note">This tool is a warning layer. It can flag safe files and miss real malware. Always verify by a call or in person. The uploaded file is read for the scan and not kept by the app. Files are never opened or run.</p>
+{% endblock %}

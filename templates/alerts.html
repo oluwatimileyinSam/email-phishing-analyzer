@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% from "_macros.html" import badge %}
+{% block title %}Alerts{% endblock %}
+{% block content %}
+<h1>Alerts</h1>
+<p class="sub">The latest 200 alerts. Times are in UTC.</p>
+
+<div class="chips">
+  <a href="/alerts" class="{{ 'on' if not level else '' }}">All</a>
+  {% for name in levels %}
+  <a href="/alerts?level={{ name }}" class="{{ 'on' if level == name else '' }}">{{ name }}</a>
+  {% endfor %}
+</div>
+
+<div class="card">
+  {% if items %}
+  <div class="scroll">
+    <table>
+      <tr><th>Time (UTC)</th><th>Level</th><th>Alert</th></tr>
+      {% for item in items %}
+      <tr>
+        <td>{{ item.created }}</td>
+        <td>{{ badge(item.level) }}</td>
+        <td><a href="/alerts/{{ item.id }}">{{ item.title }}</a></td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+  {% else %}
+  <p class="muted">No alerts to show.</p>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,4 @@
+{% macro badge(level) %}
+{% set cls = "NOWARN" if level == "NO WARNINGS" else level %}
+<span class="badge {{ cls }}">{{ level }}</span>
+{% endmacro %}
